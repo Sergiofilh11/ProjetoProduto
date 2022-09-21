@@ -17,6 +17,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -28,6 +29,7 @@ public class Produto extends JFrame {
 	private JTextField txtDtCadastro;
 	private JTextField txtDescricao;
 	private JTable tabProduto;
+	private JTextField txtQuant;
 
 	/**
 	 * Launch the application.
@@ -98,6 +100,8 @@ public class Produto extends JFrame {
 				txtID.setText(null);
 				txtDtCadastro.setText(null);
 				txtDescricao.requestFocus();
+				txtQuant.setEditable(true);
+				txtQuant.setText(null);
 			}
 		});
 		btnNovo.setBounds(312, 64, 65, 23);
@@ -161,6 +165,17 @@ public class Produto extends JFrame {
 		tabProduto.setBounds(15, 99, 648, 201);
         getContentPane().add(tabProduto);
         
+        JLabel lblNewLabel_3 = new JLabel("Quant:");
+        lblNewLabel_3.setFont(new Font("Tahoma", Font.PLAIN, 13));
+        lblNewLabel_3.setBounds(333, 27, 46, 14);
+        getContentPane().add(lblNewLabel_3);
+        
+        txtQuant = new JTextField();
+        txtQuant.setBounds(387, 23, 86, 20);
+        getContentPane().add(txtQuant);
+        txtQuant.setColumns(10);
+        txtQuant.setEditable(false);
+        
 		try {
 			listarProduto();
 		}
@@ -182,6 +197,7 @@ public class Produto extends JFrame {
 			txtID.setText(tableModel.getValueAt(row, 0).toString());
 			txtDescricao.setText(tableModel.getValueAt(row, 1).toString());
 			txtDtCadastro.setText(tableModel.getValueAt(row, 2).toString());
+			txtQuant.setText(tableModel.getValueAt(row, 3).toString());
 		}
 	};
 	
@@ -189,6 +205,7 @@ public class Produto extends JFrame {
 		txtDescricao.setEditable(false);
 		txtID.setEditable(false);
 		txtDtCadastro.setEditable(false);
+		txtQuant.setEditable(false);
 	}
 		
 	private void listarProduto() throws SQLException {
@@ -201,18 +218,19 @@ public class Produto extends JFrame {
 		}
 		else {
 			Statement stmt = con.createStatement();
-			ResultSet rs = stmt.executeQuery("SELECT * FROM db_pedido.produto");
+			ResultSet rs = stmt.executeQuery("SELECT prod.*, est.quantidade FROM db_pedido.estoque est, db_pedido.produto prod where prod.Id = est.produtoID ");
 			
-			String[] colunasTabela = new String[]{ "ID", "Descrição", "Pontuação" };
+			String[] colunasTabela = new String[]{ "ID", "Descrição", "Cadastro", "Quant" };
 			DefaultTableModel modeloTabela = new DefaultTableModel(null,colunasTabela);
-			modeloTabela.addRow(new String[] {"ID", "DESCRIÇÃO", "CADASTRO"});
+			modeloTabela.addRow(new String[] {"ID", "DESCRIÇÃO", "CADASTRO", "QUANT"});
 			
 			if(rs != null) {
 				while(rs.next()) {
 					modeloTabela.addRow(new String[] {
 						String.valueOf(rs.getInt("ID")),
 						rs.getString("descricao"),
-						rs.getString("data_cadastro")
+						rs.getString("data_cadastro"),
+						rs.getString("quantidade")
 					});
 				}
 			}
@@ -223,27 +241,46 @@ public class Produto extends JFrame {
 	
 	private void gravar() throws SQLException {
 		Connection con = null;
+	    int lastId = 0;
 		ConexaoBanco objconexao = new ConexaoBanco();
 		
 		try {
-			con = objconexao.conectar();
+			con=objconexao.conectar();
+			con.setAutoCommit(false);
 			
 			if(con == null) {
-				JOptionPane.showMessageDialog(null, "Conexao não realizada!");
+				JOptionPane.showMessageDialog(null,"conexão não realizada");
 			}
-			else {
-				Statement stmt = con.createStatement();
-				String query="insert into db_pedido.produto(descricao) values('"+txtDescricao.getText()+"')";
-				stmt.executeUpdate(query);
-				listarProduto();
-				txtDescricao.setText(null);
-				desabilitarText();
-			}	
-		}
+		    else {
+		    	//produto
+		        String query="insert into db_pedido.produto(descricao) values('"
+		                      +txtDescricao.getText()+"')";
+		        PreparedStatement ps = con.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+		        ps.executeUpdate();
+		        ResultSet rs = ps.getGeneratedKeys();
+		        if (rs.next()) {
+		            lastId = rs.getInt(1);
+		            //JOptionPane.showMessageDialog(null,""+lastId);
+		        }
+		        
+		        //estoque
+		        Statement stmt = con.createStatement();
+		        query="insert into db_pedido.estoque(produtoId,quantidade) values("
+		               +lastId+","+txtQuant.getText()+")";
+		        stmt.executeUpdate(query);
+		        
+		        con.commit();
+		        listarProduto();
+		        txtDescricao.setText(null);
+		        txtQuant.setText(null);
+		        desabilitarText();
+		    }
+        }
 		catch(Exception ex) {
+			con.rollback(); 
 			con.close();
-			JOptionPane.showMessageDialog(null, "Não foi possível gravar. "+ex.getMessage());
-		}
+			JOptionPane.showMessageDialog(null,"Não foi possível gravar. "+ex.getMessage());
+		}	
 	}
 	
 	private void excluir() throws SQLException {
@@ -286,7 +323,6 @@ public class Produto extends JFrame {
 				String query="update db_pedido.produto set descricao = '"+txtDescricao.getText()+"' where id = '"+txtID.getText()+"'";
 				stmt.executeUpdate(query);
 				listarProduto();
-				txtDescricao.setText(null);
 			}	
 		}
 		catch(Exception ex) {
