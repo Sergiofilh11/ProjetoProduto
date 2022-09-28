@@ -165,13 +165,13 @@ public class Produto extends JFrame {
 		tabProduto.setBounds(15, 99, 648, 201);
         getContentPane().add(tabProduto);
         
-        JLabel lblNewLabel_3 = new JLabel("Quant:");
+        JLabel lblNewLabel_3 = new JLabel("Quantidade");
         lblNewLabel_3.setFont(new Font("Tahoma", Font.PLAIN, 13));
-        lblNewLabel_3.setBounds(333, 27, 46, 14);
+        lblNewLabel_3.setBounds(333, 27, 65, 14);
         getContentPane().add(lblNewLabel_3);
         
         txtQuant = new JTextField();
-        txtQuant.setBounds(387, 23, 86, 20);
+        txtQuant.setBounds(408, 23, 86, 20);
         getContentPane().add(txtQuant);
         txtQuant.setColumns(10);
         txtQuant.setEditable(false);
@@ -277,7 +277,7 @@ public class Produto extends JFrame {
 		    }
         }
 		catch(Exception ex) {
-			con.rollback(); 
+			con.rollback();
 			con.close();
 			JOptionPane.showMessageDialog(null,"Não foi possível gravar. "+ex.getMessage());
 		}	
@@ -311,6 +311,7 @@ public class Produto extends JFrame {
 		Connection con = null;
 		ConexaoBanco objconexao = new ConexaoBanco();
 		txtDescricao.setEditable(true);
+		txtQuant.setEditable(true);
 		
 		try {
 			con = objconexao.conectar();
@@ -320,7 +321,7 @@ public class Produto extends JFrame {
 			}
 			else {
 				Statement stmt = con.createStatement();
-				String query="update db_pedido.produto set descricao = '"+txtDescricao.getText()+"' where id = '"+txtID.getText()+"'";
+				String query = "update db_pedido.produto as p inner join db_pedido.estoque as es on p.id = es.produtoID set p.descricao = '"+txtDescricao.getText()+"' , es.quantidade = '"+txtQuant.getText()+"' where id = '"+txtID.getText()+"'";
 				stmt.executeUpdate(query);
 				listarProduto();
 			}	
